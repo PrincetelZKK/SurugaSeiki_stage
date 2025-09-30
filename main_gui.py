@@ -71,9 +71,41 @@ def laser_beam_align():
         messagebox.showerror("Error", str(e))
 
 
+def choose_distance_popup():
+    popup = tk.Toplevel(root)
+    popup.title("Choose Distance")
+    popup.geometry("250x350")
+    selected_dist = tk.IntVar(value=500)
+
+    tk.Label(popup, text="Select moving distance (um):").pack(pady=10)
+
+    distances = [100, 200, 500, 1000, 2000, 5000]
+    for d in distances:
+        tk.Radiobutton(popup, text=f"{d} um", variable=selected_dist, value=d).pack(anchor=tk.W)
+
+    custom_var = tk.StringVar()
+    tk.Label(popup, text="Or enter custom distance:").pack(pady=5)
+    tk.Entry(popup, textvariable=custom_var).pack()
+
+    def confirm():
+        if custom_var.get():
+            try:
+                selected_dist.set(int(custom_var.get()))
+            except ValueError:
+                messagebox.showwarning("Invalid", "Enter a valid number")
+                return
+        popup.destroy()
+
+    tk.Button(popup, text="OK", command=confirm).pack(pady=10)
+    popup.grab_set()
+    root.wait_window(popup)
+
+    return selected_dist.get()
+
+
 def move_z(direction):
-    dist = simpledialog.askinteger("Move Distance", "Enter moving distance (um):", minvalue=1)
-    if dist:
+    dist = choose_distance_popup()
+    if dist is not None:
         if direction == "forward":
             ms.ZMove(-dist)
         else:
@@ -96,6 +128,8 @@ def find_best_center():
         ms.show_positions()
         log(f"Saved position {point}")
         ms.save_current_positions(point)
+        messagebox.showinfo("Next Point", f"Point {point} saved. Press OK to continue to next point.")
+        beep()
     best_position = ms.center_position()
     ms.restore_position(best_position)
     ms.show_positions()
@@ -144,46 +178,60 @@ def update_power():
 root = tk.Tk()
 root.title("Laser Beam Alignment GUI")
 
+
+main_frame = tk.Frame(root)
+main_frame.pack(fill=tk.BOTH, expand=True)
+
+
+# Left frame for buttons and logo
+left_frame = tk.Frame(main_frame)
+left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+
+
+# Right frame for log and power
+right_frame = tk.Frame(main_frame)
+right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+
 # Load logo (replace 'logo.png' with your file path)
 try:
     logo_img = Image.open("Princetel Logo.png")
     logo_img = logo_img.resize((120, 120))
     logo_photo = ImageTk.PhotoImage(logo_img)
-    logo_label = tk.Label(root, image=logo_photo)
+    logo_label = tk.Label(left_frame, image=logo_photo)
     logo_label.pack(pady=5)
 except Exception as e:
-    log_box = None
     messagebox.showwarning("Logo", f"Logo not loaded: {e}")
 
-frame = tk.Frame(root)
-frame.pack(pady=10)
 
-btn1 = tk.Button(frame, text="Initial Alignment", width=20, command=laser_beam_align)
-btn2 = tk.Button(frame, text="Z-Move Forward", width=20, command=lambda: move_z("forward"))
-btn3 = tk.Button(frame, text="Z-Move Backward", width=20, command=lambda: move_z("backward"))
-btn4 = tk.Button(frame, text="Fine Alignment", width=20, command=fine_alignment)
-btn5 = tk.Button(frame, text="Find Best Center", width=20, command=find_best_center)
-btn6 = tk.Button(frame, text="Epoxy Move", width=20, command=epoxy_move)
-btn7 = tk.Button(frame, text="Exit", width=20, command=exit_system)
+# Buttons with different colors
+btn1 = tk.Button(left_frame, text="Initial Alignment", width=20, command=laser_beam_align, bg="lightblue")
+btn2 = tk.Button(left_frame, text="Z-Move Forward", width=20, command=lambda: move_z("forward"), bg="lightgreen")
+btn3 = tk.Button(left_frame, text="Z-Move Backward", width=20, command=lambda: move_z("backward"), bg="lightyellow")
+btn4 = tk.Button(left_frame, text="Fine Alignment", width=20, command=fine_alignment, bg="lightpink")
+btn5 = tk.Button(left_frame, text="Find Rotate Center", width=20, command=find_best_center, bg="lightcoral")
+btn6 = tk.Button(left_frame, text="Epoxy", width=20, command=epoxy_move, bg="lightsalmon")
+btn7 = tk.Button(left_frame, text="Exit", width=20, command=exit_system, bg="lightgray")
+btn_monitor = tk.Button(left_frame, text="Start Monitoring", width=20, command=toggle_monitoring, bg="lightcyan")
 
-btn1.grid(row=0, column=0, padx=5, pady=5)
-btn2.grid(row=1, column=0, padx=5, pady=5)
-btn3.grid(row=2, column=0, padx=5, pady=5)
-btn4.grid(row=3, column=0, padx=5, pady=5)
-btn5.grid(row=4, column=0, padx=5, pady=5)
-btn6.grid(row=5, column=0, padx=5, pady=5)
-btn7.grid(row=6, column=0, padx=5, pady=5)
 
-# Real-time monitoring button
-btn_monitor = tk.Button(frame, text="Start Monitoring", width=20, command=toggle_monitoring)
-btn_monitor.grid(row=7, column=0, padx=5, pady=5)
+btn1.pack(pady=5)
+btn2.pack(pady=5)
+btn3.pack(pady=5)
+btn4.pack(pady=5)
+btn5.pack(pady=5)
+btn6.pack(pady=5)
+btn7.pack(pady=5)
+btn_monitor.pack(pady=5)
 
-# Power label
-lbl_power = tk.Label(root, text="Current Power: --", font=("Arial", 12))
-lbl_power.pack(pady=5)
 
-# Log output box
-log_box = scrolledtext.ScrolledText(root, width=60, height=20)
-log_box.pack(padx=10, pady=10)
+# Right frame: power label and log
+lbl_power = tk.Label(right_frame, text="-- dBm", font=("Arial", 32, "bold"), fg="blue")
+lbl_power.pack(pady=10)
+
+
+log_box = scrolledtext.ScrolledText(right_frame, width=60, height=30)
+log_box.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
 
 root.mainloop()
